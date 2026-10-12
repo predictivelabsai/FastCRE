@@ -8,6 +8,7 @@ never rely on `search_path`.
 
 from __future__ import annotations
 
+import os
 from contextlib import contextmanager
 from functools import lru_cache
 
@@ -21,7 +22,10 @@ from utils.config import settings
 
 @lru_cache(maxsize=1)
 def pool() -> ConnectionPool:
-    p = ConnectionPool(conninfo=settings().db_url, min_size=1, max_size=8, open=False)
+    p = ConnectionPool(
+        conninfo=settings().db_url, min_size=0, max_size=3, max_idle=300, max_lifetime=1800,
+        kwargs={"application_name": os.getenv("DB_APPLICATION_NAME", "fastcre")}, open=False,
+    )
     p.open()
     return p
 
@@ -34,7 +38,10 @@ def connect():
 
 @lru_cache(maxsize=1)
 def engine() -> Engine:
-    return create_engine(settings().db_url, pool_pre_ping=True, pool_size=4, max_overflow=4)
+    return create_engine(
+        settings().db_url, pool_pre_ping=True, pool_size=1, max_overflow=2, pool_recycle=300,
+        connect_args={"application_name": os.getenv("DB_APPLICATION_NAME", "fastcre")},
+    )
 
 
 def fetch_all(sql: str, params: tuple | dict | None = None) -> list[dict]:
